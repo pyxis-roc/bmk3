@@ -2,7 +2,6 @@
 # -*- mode: python -*-
 
 import argparse
-import yaml
 import bmk3
 import os
 import sys
@@ -10,9 +9,39 @@ import sys
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
     p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
+    p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
+
     args = p.parse_args()
 
     if not os.path.exists(args.bmk3file):
-        print("ERROR: {args.bmk3file} does not exist.", file=sys.stderr)
+        print(f"ERROR: {args.bmk3file} does not exist.", file=sys.stderr)
         sys.exit(1)
 
+    cmdline_variables = {}
+    if args.variables:
+        for v in args.variables:
+            vn, vv = v.split("=", 1)
+            cmdline_variables[vn] = vv
+
+    s = bmk3.Script(args.bmk3file)
+
+    tvars = dict(s.variables)
+    tvars.update(cmdline_variables)
+
+    # expand recursive template definitions
+    for t in s.templates:
+        s.templates[t].expand_templates(s.templates)
+
+    # expand template definitions
+    for t in s.templates:
+        try:
+            for g in s.templates[t].generate(tvars):
+                a, c = g
+                if a and 'input' in a:
+                    print(f"*** {t}.{a['input']['name']}")
+                else:
+                    print(f"*** {t}")
+                print(c)
+        except KeyError as err:
+            print("ERROR", err, file=sys.stderr)
+            sys.exit(1)
