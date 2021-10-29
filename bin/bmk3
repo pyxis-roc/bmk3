@@ -38,7 +38,7 @@ if __name__ == "__main__":
             for g in s.templates[t].generate(tvars):
                 a, c = g
                 if a and 'input' in a:
-                    print(f"*** {t}.{a['input']['name']}")
+                    print(f"*** {t}:{a['binary']}:{a['input']['name']}")
                 else:
                     print(f"*** {t}")
                 print(c)
