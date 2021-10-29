@@ -4,12 +4,38 @@ import yaml
 import re
 import sys
 import itertools
+import tempfile
+import os
 
 ARG_NAME = re.compile(r"[^.\[]+")
+
+class TempfileArg:
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.tmpfiles = {}
+        self.dir_ = dir
+        self.suffix = suffix
+        self.prefix = prefix
+
+    def reset(self):
+        self.tmpfiles = {}
+
+    def __getattr__(self, attr):
+        if attr in self.tmpfiles:
+            return self.tmpfiles[attr]
+
+        try:
+            return super().__getattr__(attr)
+        except AttributeError:
+            h, f = tempfile.mkstemp(prefix=self.prefix or attr, suffix=self.suffix, dir=self.dir_)
+            os.close(h)
+            self.tmpfiles[attr] = f
+            return self.tmpfiles[attr]
+
 class ScriptTemplate:
     def __init__(self, name, template):
         self.name = name
-        self.template = template
+        self.template = template.strip()
+
         self.parse()
 
     def parse(self):
@@ -84,6 +110,11 @@ class ScriptTemplate:
         vk = set(varvals.keys())
         not_provided = self.variables - vk
 
+        tmpfileobj = None
+        if 'tempfile' in not_provided:
+            not_provided.remove('tempfile')
+            tmpfileobj = TempfileArg()
+
         if len(not_provided):
             raise KeyError(f"Variables {not_provided} not specified for rule {self.name}")
 
@@ -91,7 +122,9 @@ class ScriptTemplate:
         varcontents = []
         for v in self.variables:
             varorder.append(v)
-            if isinstance(varvals[v], list):
+            if v == 'tempfile':
+                varcontents.append([tmpfileobj])
+            elif isinstance(varvals[v], list):
                 # this means that lists must be doubly-nested [[]] to be treated as singletons
                 varcontents.append(varvals[v])
             else:
@@ -101,6 +134,9 @@ class ScriptTemplate:
             assign = dict([(v, xx) for v, xx in zip(varorder, x)])
 
             s = self.template.format(**assign)
+
+            if tmpfileobj:
+                tmpfileobj.reset()
 
             yield assign, s
 
