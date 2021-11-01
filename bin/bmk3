@@ -12,6 +12,8 @@ if __name__ == "__main__":
     p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
     p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
     p.add_argument("-n", dest="dryrun", help="Dry run", action="store_true")
+    p.add_argument("-k", dest="keep", choices=['always', 'fail', 'never'],
+                   help="Keep temporary files", default='never')
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     args = p.parse_args()
@@ -43,11 +45,12 @@ if __name__ == "__main__":
         try:
             for g in s.templates[t].generate(tvars):
                 a, c = g
+                k = [t]
 
-                if a and 'input' in a:
-                    name = f"{t}:{a['binary']}:{a['input']['name']}"
-                else:
-                    name = t
+                if 'binary' in a: k.append(a['binary'])
+                if 'input' in a: k.append(str(a['input']['name']))
+
+                name = ':'.join(k)
 
                 if len(args.rules):
                     for r in args.rules:
@@ -59,19 +62,24 @@ if __name__ == "__main__":
                     print(f"*** {name}")
                     x = cmdscript.CmdScript(name, c, a)
                     print(x)
+                    x.cleanup()
         except KeyError as err:
             print("ERROR IN EXPANDING TEMPLATE, KeyError", err, file=sys.stderr)
+            raise
             sys.exit(1)
 
     for c in cmdscripts:
         print(f"**** {c.name}")
 
         print(c.script)
-
+        fail = False
         if not args.dryrun:
             if not c.run():
                 print(c.result.output)
                 print(c.result.errors)
+                fail = True
 
-            c.cleanup()
+        if args.keep != 'always':
+            if args.keep == 'never' or not (fail and args.keep == 'fail'):
+                c.cleanup()
 

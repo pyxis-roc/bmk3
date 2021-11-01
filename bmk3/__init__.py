@@ -35,7 +35,6 @@ class ScriptTemplate:
     def __init__(self, name, template):
         self.name = name
         self.template = template.strip()
-
         self.parse()
 
     def parse(self):
@@ -82,8 +81,12 @@ class ScriptTemplate:
                     arg_name = arg_name.group(0)
 
                     if arg_name == 'templates':
+                        assert x[2] is '' and x[3] is None, f"Don't support ! and : for template[]"
                         tmpl = fieldname[len('templates['):][:-1]
                         changed = True
+                        if x[0]:
+                            out.append((x[0], None, '', None))
+
                         out.extend(templates[tmpl].parsed)
                     else:
                         out.append(x)
