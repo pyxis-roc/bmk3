@@ -111,8 +111,8 @@ class ScriptTemplate:
         not_provided = self.variables - vk
 
         tmpfileobj = None
-        if 'tempfile' in not_provided:
-            not_provided.remove('tempfile')
+        if 'TempFile' in not_provided:
+            not_provided.remove('TempFile')
             tmpfileobj = TempfileArg()
 
         if len(not_provided):
@@ -122,7 +122,7 @@ class ScriptTemplate:
         varcontents = []
         for v in self.variables:
             varorder.append(v)
-            if v == 'tempfile':
+            if v == 'TempFile':
                 varcontents.append([tmpfileobj])
             elif isinstance(varvals[v], list):
                 # this means that lists must be doubly-nested [[]] to be treated as singletons
@@ -136,6 +136,7 @@ class ScriptTemplate:
             s = self.template.format(**assign)
 
             if tmpfileobj:
+                assign['TempFile'] = tmpfileobj.tmpfiles
                 tmpfileobj.reset()
 
             yield assign, s

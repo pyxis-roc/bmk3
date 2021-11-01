@@ -5,11 +5,14 @@ import argparse
 import bmk3
 import os
 import sys
+import bmk3.cmdscript as cmdscript
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
     p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
     p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
+    p.add_argument("-n", dest="dryrun", help="Dry run", action="store_true")
+    p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     args = p.parse_args()
 
@@ -32,16 +35,43 @@ if __name__ == "__main__":
     for t in s.templates:
         s.templates[t].expand_templates(s.templates)
 
-    # expand template definitions
+    # expand template definitions and build command scripts
+
+    cmdscripts = []
+
     for t in s.templates:
         try:
             for g in s.templates[t].generate(tvars):
                 a, c = g
+
                 if a and 'input' in a:
-                    print(f"*** {t}:{a['binary']}:{a['input']['name']}")
+                    name = f"{t}:{a['binary']}:{a['input']['name']}"
                 else:
-                    print(f"*** {t}")
-                print(c)
+                    name = t
+
+                if len(args.rules):
+                    for r in args.rules:
+                        if name.startswith(r):
+                            # print(f"*** {name} [matched {r}]")
+                            x = cmdscript.CmdScript(name, c, a)
+                            cmdscripts.append(x)
+                else:
+                    print(f"*** {name}")
+                    x = cmdscript.CmdScript(name, c, a)
+                    print(x)
         except KeyError as err:
-            print("ERROR", err, file=sys.stderr)
+            print("ERROR IN EXPANDING TEMPLATE, KeyError", err, file=sys.stderr)
             sys.exit(1)
+
+    for c in cmdscripts:
+        print(f"**** {c.name}")
+
+        print(c.script)
+
+        if not args.dryrun:
+            if not c.run():
+                print(c.result.output)
+                print(c.result.errors)
+
+            c.cleanup()
+
