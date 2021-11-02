@@ -152,13 +152,31 @@ class ScriptTemplate:
 class Script:
     def __init__(self, script):
         self.script = script
+        self.cwd = os.path.dirname(os.path.realpath(script))
+        self._variables, self._templates = self._loader(self.script)
 
-        with open(self.script, "r") as f:
-            self._contents = yaml.safe_load(f)
-            self._variables = self._contents['variables']
+    def _loader(self, script):
+        with open(script, "r") as f:
+            contents = yaml.safe_load(f)
 
-            templates = self._contents['templates']
-            self._templates = dict([(v, ScriptTemplate(v, templates[v])) for v in templates])
+            variables = {}
+            templates = {}
+
+            if 'import' in contents:
+                for f in contents['import']:
+                    v, t = self._loader(f)
+
+                    # TODO: detect overwriting?
+                    variables.update(v)
+                    templates.update(t)
+
+            local_templates = contents.get('templates', {})
+            local_templates = dict([(v, ScriptTemplate(v, local_templates[v])) for v in local_templates])
+
+            variables.update(contents.get('variables', {}))
+            templates.update(local_templates)
+
+            return variables, templates
 
     @property
     def variables(self):
