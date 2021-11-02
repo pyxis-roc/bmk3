@@ -12,11 +12,15 @@ if __name__ == "__main__":
     p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
     p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
     p.add_argument("-n", dest="dryrun", help="Dry run", action="store_true")
+    p.add_argument("-q", dest="quiet", help="Quiet", action="store_true")
     p.add_argument("-k", dest="keep", choices=['always', 'fail', 'never'],
-                   help="Keep temporary files", default='never')
+                   help="Keep temporary files", default='fail')
+    p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     args = p.parse_args()
+    if args.workdir:
+        os.chdir(args.workdir)
 
     if not os.path.exists(args.bmk3file):
         print(f"ERROR: {args.bmk3file} does not exist.", file=sys.stderr)
@@ -56,7 +60,7 @@ if __name__ == "__main__":
                     for r in args.rules:
                         if name.startswith(r):
                             # print(f"*** {name} [matched {r}]")
-                            x = cmdscript.CmdScript(name, c, a)
+                            x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
                             cmdscripts.append(x)
                 else:
                     print(f"*** {name}")
@@ -75,9 +79,14 @@ if __name__ == "__main__":
         fail = False
         if not args.dryrun:
             if not c.run():
-                print(c.result.output)
-                print(c.result.errors)
+                if not args.quiet:
+                    print(c.result.output)
+                    print(c.result.errors)
                 fail = True
+            else:
+                if not args.quiet:
+                    print(c.result.output)
+                    print(c.result.errors)
 
         if args.keep != 'always':
             if args.keep == 'never' or not (fail and args.keep == 'fail'):

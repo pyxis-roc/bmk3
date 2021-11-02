@@ -8,10 +8,11 @@ import os
 logger = logging.getLogger(__name__)
 
 class CmdScript:
-    def __init__(self, name, script, varvals):
+    def __init__(self, name, script, varvals, cwd = None):
         self.name = name
         self.script = script
         self.varvals = varvals
+        self.cwd = cwd
 
     def run(self):
         h, f = tempfile.mkstemp(suffix='.sh')
@@ -19,7 +20,7 @@ class CmdScript:
         os.write(h, self.script.encode('utf-8'))
         os.close(h)
 
-        self.result = run(['bash', f])
+        self.result = run(['bash', f], cwd=self.cwd)
         return self.result.success
 
     def cleanup(self):
