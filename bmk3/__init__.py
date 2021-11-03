@@ -6,6 +6,9 @@ import sys
 import itertools
 import tempfile
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 ARG_NAME = re.compile(r"[^.\[]+")
 
@@ -34,7 +37,10 @@ class TempfileArg:
 class ScriptTemplate:
     def __init__(self, name, template):
         self.name = name
-        self.template = template.strip()
+        self._tmpl = template
+        self.fragment = template.get('fragment', False)
+        assert 'cmds' in template, f'{name} missing "cmds"'
+        self.template = template['cmds']
         self.parse()
 
     def parse(self):
@@ -81,7 +87,7 @@ class ScriptTemplate:
                     arg_name = arg_name.group(0)
 
                     if arg_name == 'templates':
-                        assert x[2] is '' and x[3] is None, f"Don't support ! and : for template[]"
+                        assert x[2] == '' and x[3] is None, f"Don't support ! and : for template[]"
                         tmpl = fieldname[len('templates['):][:-1]
                         changed = True
                         if x[0]:
@@ -153,16 +159,18 @@ class Script:
     def __init__(self, script):
         self.script = script
         self.cwd = os.path.dirname(os.path.realpath(script))
-        self._variables, self._templates = self._loader(self.script)
+        self._system, self._variables, self._templates = self._loader(self.script)
 
     def _loader(self, script):
         with open(script, "r") as f:
             contents = yaml.safe_load(f)
 
+            system = {}
             variables = {}
             templates = {}
 
             if 'import' in contents:
+                system['import'] = contents['import']
                 for f in contents['import']:
                     v, t = self._loader(f)
 
@@ -176,7 +184,20 @@ class Script:
             variables.update(contents.get('variables', {}))
             templates.update(local_templates)
 
-            return variables, templates
+            return system, variables, templates
+
+    def generate(self, template_vars, template_filter = lambda x: True):
+        for t in self.templates:
+            tmpl = self.templates[t]
+            if not template_filter(tmpl):
+                logger.debug(f'{tmpl.name} filtered out by template_filter')
+                continue
+
+            if tmpl.fragment:
+                logger.debug(f'{tmpl.name} is a fragment, ignoring when generating')
+                continue
+
+            yield self.templates[t].generate(template_vars)
 
     @property
     def variables(self):

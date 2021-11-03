@@ -10,7 +10,7 @@ import logging
 import datetime
 import time
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('bmk3')
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         os.chdir(args.workdir)
 
     if not os.path.exists(args.bmk3file):
-        print(f"ERROR: {args.bmk3file} does not exist.", file=sys.stderr)
+        logger.error(f"bmk3 configuration {os.getcwd()}/{args.bmk3file} does not exist.")
         sys.exit(1)
 
     cmdline_variables = {}
@@ -52,38 +52,36 @@ if __name__ == "__main__":
 
     cmdscripts = []
 
-    for t in s.templates:
-        try:
-            for g in s.templates[t].generate(tvars):
-                a, c = g
-                k = [t]
+    try:
+        for g in s.generate(tvars):
+            a, c = g
+            k = [t]
 
-                if 'binary' in a: k.append(a['binary'])
-                if 'input' in a: k.append(str(a['input']['name']))
+            if 'binary' in a: k.append(a['binary'])
+            if 'input' in a: k.append(str(a['input']['name']))
 
-                name = ':'.join(k)
+            name = ':'.join(k)
 
-                if len(args.rules):
-                    for r in args.rules:
-                        if name.startswith(r):
-                            # print(f"*** {name} [matched {r}]")
-                            x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
-                            cmdscripts.append(x)
-                else:
-                    print(f"*** {name}")
-                    x = cmdscript.CmdScript(name, c, a)
-                    print(x)
-                    x.cleanup()
-        except KeyError as err:
-            print("ERROR IN EXPANDING TEMPLATE, KeyError", err, file=sys.stderr)
-            raise
-            sys.exit(1)
+            if len(args.rules):
+                for r in args.rules:
+                    if name.startswith(r):
+                        x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
+                        cmdscripts.append(x)
+            else:
+                print(f"*** {name}")
+                x = cmdscript.CmdScript(name, c, a)
+                if not args.quiet: print(x)
+                x.cleanup()
+    except KeyError as err:
+        logger.error(f"While expanding template, {str(err)}")
+        raise
+        sys.exit(1)
 
     count = 0
     success = 0
 
     for c in cmdscripts:
-        print(f"**** {c.name}")
+        logger.info(f"**** {c.name}")
 
         print(c.script)
         count += 1
@@ -92,14 +90,16 @@ if __name__ == "__main__":
             logger.info(f'Running {c.name} at {datetime.datetime.now()}')
             start = time.perf_counter()
             if not c.run():
+                logger.error(f'Running {c.name} FAILED')
                 if not args.quiet:
-                    print(c.result.output)
-                    print(c.result.errors)
+                    logger.info(c.result.output)
+                    logger.info(c.result.errors)
                 fail = True
             else:
+                logger.error(f'Running {c.name} SUCCEEDED')
                 if not args.quiet:
-                    print(c.result.output)
-                    print(c.result.errors)
+                    logger.info(c.result.output)
+                    logger.info(c.result.errors)
                 success += 1
             end = time.perf_counter()
             logger.info(f'{c.name} finished at {datetime.datetime.now()}')
