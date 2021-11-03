@@ -7,6 +7,8 @@ import os
 import sys
 import bmk3.cmdscript as cmdscript
 import logging
+import datetime
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,8 @@ if __name__ == "__main__":
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
+
+    logging.basicConfig(level=logging.INFO)
 
     args = p.parse_args()
     if args.workdir:
@@ -85,6 +89,8 @@ if __name__ == "__main__":
         count += 1
         fail = False
         if not args.dryrun:
+            logger.info(f'Running {c.name} at {datetime.datetime.now()}')
+            start = time.perf_counter()
             if not c.run():
                 if not args.quiet:
                     print(c.result.output)
@@ -95,6 +101,9 @@ if __name__ == "__main__":
                     print(c.result.output)
                     print(c.result.errors)
                 success += 1
+            end = time.perf_counter()
+            logger.info(f'{c.name} finished at {datetime.datetime.now()}')
+            logger.info(f'{c.name} took {end - start} s')
 
         if args.keep != 'always':
             if args.keep == 'never' or not (fail and args.keep == 'fail'):
