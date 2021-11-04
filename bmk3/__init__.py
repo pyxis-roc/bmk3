@@ -176,7 +176,10 @@ class Script:
 
                     # TODO: detect overwriting?
                     variables.update(v)
-                    templates.update(t)
+                    for tt in t:
+                        templates.update({tt: t[tt]})
+                        if t[tt].fragment:
+                            templates[tt].fragment = False
 
             local_templates = contents.get('templates', {})
             local_templates = dict([(v, ScriptTemplate(v, local_templates[v])) for v in local_templates])

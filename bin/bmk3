@@ -125,7 +125,7 @@ if __name__ == "__main__":
                     logger.info(c.result.errors)
                 fail = True
             else:
-                logger.error(f'Running {c.name} SUCCEEDED')
+                logger.info(f'Running {c.name} SUCCEEDED')
                 if not args.quiet:
                     logger.info(c.result.output)
                     logger.info(c.result.errors)
