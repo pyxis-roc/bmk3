@@ -40,7 +40,7 @@ class ScriptTemplate:
         self._tmpl = template
         self.fragment = template.get('fragment', False)
         assert 'cmds' in template, f'{name} missing "cmds"'
-        self.template = template['cmds']
+        self.template = template['cmds'].strip()
         self.parse()
 
     def parse(self):

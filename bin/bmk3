@@ -10,6 +10,9 @@ import logging
 import datetime
 import time
 import glob
+import fnmatch
+import re
+import textwrap
 
 def find_bmk3():
     paths = ['.']
@@ -24,6 +27,9 @@ def find_bmk3():
 
         del paths[0]
 
+def rule_globs_to_re(r):
+    xp = [fnmatch.translate(rr) for rr in r]
+    return re.compile("|".join([x for x in xp]))
 
 logger = logging.getLogger('bmk3')
 
@@ -36,7 +42,7 @@ if __name__ == "__main__":
     p.add_argument("-k", dest="keep", choices=['always', 'fail', 'never'],
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
-    p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
+    p.add_argument("rules", nargs="*", help="Rule globs to run", default=[])
 
     logging.basicConfig(level=logging.INFO)
 
@@ -63,6 +69,11 @@ if __name__ == "__main__":
     b.update_variables(cmdline_variables)
     b.expand_templates()
 
+    if args.rules:
+        rule_re = rule_globs_to_re(args.rules)
+    else:
+        rule_re = None
+
     # expand template definitions and build command scripts
 
     cmdscripts = []
@@ -77,15 +88,15 @@ if __name__ == "__main__":
 
             name = ':'.join(k)
 
-            if len(args.rules):
-                for r in args.rules:
-                    if name.startswith(r):
-                        x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
-                        cmdscripts.append(x)
+            if rule_re:
+                if rule_re.match(name):
+                    x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
+                    cmdscripts.append(x)
             else:
                 print(f"*** {name}")
                 x = cmdscript.CmdScript(name, c, a)
-                if not args.quiet: print(x)
+                if not args.quiet:
+                    print(textwrap.indent(str(x), '   '))
                 x.cleanup()
     except KeyError as err:
         logger.error(f"While expanding template, {str(err)}")
@@ -98,7 +109,7 @@ if __name__ == "__main__":
     for c in cmdscripts:
         logger.info(f"**** {c.name} from {c.cwd}")
 
-        print(c.script)
+        logger.info(textwrap.indent("\n" + str(c.script), '    '))
         count += 1
         fail = False
         if not args.dryrun:
@@ -116,6 +127,7 @@ if __name__ == "__main__":
                     logger.info(c.result.output)
                     logger.info(c.result.errors)
                 success += 1
+
             end = time.perf_counter()
             logger.info(f'{c.name} finished at {datetime.datetime.now()}')
             logger.info(f'{c.name} took {end - start} s')

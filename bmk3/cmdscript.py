@@ -21,6 +21,9 @@ class CmdScript:
         os.close(h)
 
         self.result = run(['bash', f], cwd=self.cwd)
+
+        os.unlink(f)
+
         return self.result.success
 
     def cleanup(self):
