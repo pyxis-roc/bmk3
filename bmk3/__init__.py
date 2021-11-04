@@ -172,7 +172,7 @@ class Script:
             if 'import' in contents:
                 system['import'] = contents['import']
                 for f in contents['import']:
-                    v, t = self._loader(f)
+                    _, v, t = self._loader(os.path.join(self.cwd, f))
 
                     # TODO: detect overwriting?
                     variables.update(v)
@@ -197,7 +197,8 @@ class Script:
                 logger.debug(f'{tmpl.name} is a fragment, ignoring when generating')
                 continue
 
-            yield self.templates[t].generate(template_vars)
+            for g in self.templates[t].generate(template_vars):
+                yield t, g
 
     @property
     def variables(self):
@@ -206,3 +207,34 @@ class Script:
     @property
     def templates(self):
         return self._templates
+
+
+class BMK3:
+    def __init__(self):
+        pass
+
+    def load_scripts(self, scriptfiles):
+        out = []
+        for f in scriptfiles:
+            s = Script(f)
+            out.append(s)
+
+        self.scripts = out
+        return out
+
+    def update_variables(self, variables):
+        for s in self.scripts:
+            s.variables.update(variables)
+
+    def expand_templates(self):
+        # TODO: toposort and one-pass
+        for s in self.scripts:
+            for t in s.templates:
+                s.templates[t].expand_templates(s.templates)
+
+
+    def generate(self, template_filter = lambda x: True):
+        for s in self.scripts:
+            for t, g in s.generate(s.variables, template_filter):
+                yield s, t, g
+

@@ -9,12 +9,27 @@ import bmk3.cmdscript as cmdscript
 import logging
 import datetime
 import time
+import glob
+
+def find_bmk3():
+    paths = ['.']
+
+    while len(paths):
+        with os.scandir(paths[0]) as l:
+            for f in l:
+                if f.is_dir():
+                    paths.append(f)
+                elif f.is_file() and f.name == 'bmk3.yaml':
+                    yield f.path
+
+        del paths[0]
+
 
 logger = logging.getLogger('bmk3')
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
-    p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
+    #p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
     p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
     p.add_argument("-n", dest="dryrun", help="Dry run", action="store_true")
     p.add_argument("-q", dest="quiet", help="Quiet", action="store_true")
@@ -29,7 +44,11 @@ if __name__ == "__main__":
     if args.workdir:
         os.chdir(args.workdir)
 
-    if not os.path.exists(args.bmk3file):
+    bmk3files = list(find_bmk3())
+    logger.info(f'Loaded {len(bmk3files)} files')
+    logger.debug(f'Found {bmk3files}')
+
+    if not len(bmk3files):
         logger.error(f"bmk3 configuration {os.getcwd()}/{args.bmk3file} does not exist.")
         sys.exit(1)
 
@@ -39,21 +58,17 @@ if __name__ == "__main__":
             vn, vv = v.split("=", 1)
             cmdline_variables[vn] = vv
 
-    s = bmk3.Script(args.bmk3file)
-
-    tvars = dict(s.variables)
-    tvars.update(cmdline_variables)
-
-    # expand recursive template definitions
-    for t in s.templates:
-        s.templates[t].expand_templates(s.templates)
+    b = bmk3.BMK3()
+    b.load_scripts(bmk3files)
+    b.update_variables(cmdline_variables)
+    b.expand_templates()
 
     # expand template definitions and build command scripts
 
     cmdscripts = []
 
     try:
-        for g in s.generate(tvars):
+        for s, t, g in b.generate():
             a, c = g
             k = [t]
 
@@ -81,7 +96,7 @@ if __name__ == "__main__":
     success = 0
 
     for c in cmdscripts:
-        logger.info(f"**** {c.name}")
+        logger.info(f"**** {c.name} from {c.cwd}")
 
         print(c.script)
         count += 1
