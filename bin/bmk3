@@ -18,12 +18,15 @@ def find_bmk3():
     paths = ['.']
 
     while len(paths):
-        with os.scandir(paths[0]) as l:
-            for f in l:
-                if f.is_dir():
-                    paths.append(f)
-                elif f.is_file() and f.name == 'bmk3.yaml':
-                    yield f.path
+        try:
+            with os.scandir(paths[0]) as l:
+                for f in l:
+                    if f.is_dir():
+                        paths.append(f)
+                    elif f.is_file() and f.name == 'bmk3.yaml':
+                        yield f.path
+        except PermissionError as e:
+            logger.error(str(e))
 
         del paths[0]
 
