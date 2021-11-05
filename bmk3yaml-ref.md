@@ -5,6 +5,7 @@ The following top-level dictionaries are recognized:
    - `import`: A list of files to import into the current script
    - `variables`: A dictionary of variables and their values
    - `templates`: A dictionary of rules and their templates
+   - `filters`: A dictionary of rule-based filters to apply to variable assignments
 
 ## `import`
 
@@ -58,3 +59,20 @@ The following variables are pre-defined for use:
     references to the same attribute of `TempFile` return the same
     name.
 
+## `filters`
+
+The `filters` dictionary allows specific variable assignments to be
+filtered out on a per-rule basis. For example:
+
+```
+filter:
+   somerule:
+      ensure_all:
+         - 'var1 != 1'
+	 - 'var2 == 0'
+```
+
+This checks that for `somerule`, the assignments of `var1` and `var2`
+meet the specified conditions before they're applied to a template.
+
+Each condition is a Python3 expression.

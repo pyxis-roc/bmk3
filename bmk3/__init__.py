@@ -115,7 +115,7 @@ class ScriptTemplate:
         self.template = ''.join(template)
         self.parse()
 
-    def generate(self, varvals):
+    def generate(self, varvals, filters = None):
         vk = set(varvals.keys())
         not_provided = self.variables - vk
 
@@ -142,6 +142,10 @@ class ScriptTemplate:
         for x in itertools.product(*varcontents):
             assign = dict([(v, xx) for v, xx in zip(varorder, x)])
 
+            if filters and self.name in filters:
+                if not self.check_assignment(assign, filters[self.name]):
+                    continue
+
             s = self.template.format(**assign)
 
             if tmpfileobj:
@@ -149,6 +153,14 @@ class ScriptTemplate:
                 tmpfileobj.reset()
 
             yield assign, s
+
+    def check_assignment(self, assign, filters):
+        gl = dict(assign)
+        for e in filters['ensure_all']:
+            if not eval(e, gl, {}):
+                return False
+
+        return True
 
     def __str__(self):
         return self.template #f"ScriptTemplate({self.name}, {repr(self.template)})"
@@ -159,7 +171,8 @@ class Script:
     def __init__(self, script):
         self.script = script
         self.cwd = os.path.dirname(os.path.realpath(script))
-        self._system, self._variables, self._templates = self._loader(self.script)
+        self._system, self._variables, self._templates, r = self._loader(self.script)
+        self.filters = r.get('filters', {})
 
     def _loader(self, script):
         with open(script, "r") as f:
@@ -168,11 +181,12 @@ class Script:
             system = {}
             variables = {}
             templates = {}
+            filters = {}
 
             if 'import' in contents:
                 system['import'] = contents['import']
                 for f in contents['import']:
-                    _, v, t = self._loader(os.path.join(self.cwd, f))
+                    _, v, t, r = self._loader(os.path.join(self.cwd, f))
 
                     # TODO: detect overwriting?
                     variables.update(v)
@@ -181,13 +195,20 @@ class Script:
                         if t[tt].fragment:
                             templates[tt].fragment = False
 
+                    for k in r:
+                        if k == 'filters':
+                            filters.update(r[k])
+                        else:
+                            raise NotImplementedError(f"Unsupported return key {k}")
+
             local_templates = contents.get('templates', {})
             local_templates = dict([(v, ScriptTemplate(v, local_templates[v])) for v in local_templates])
 
             variables.update(contents.get('variables', {}))
             templates.update(local_templates)
+            filters.update(contents.get('filters', {}))
 
-            return system, variables, templates
+            return system, variables, templates, {'filters': filters}
 
     def generate(self, template_vars, template_filter = lambda x: True):
         for t in self.templates:
@@ -200,7 +221,7 @@ class Script:
                 logger.debug(f'{tmpl.name} is a fragment, ignoring when generating')
                 continue
 
-            for g in self.templates[t].generate(template_vars):
+            for g in self.templates[t].generate(template_vars, filters=self.filters):
                 yield t, g
 
     @property

@@ -139,4 +139,7 @@ if __name__ == "__main__":
             if args.keep == 'never' or not (fail and args.keep == 'fail'):
                 c.cleanup()
 
-    logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count-success}')
+    if not args.dryrun:
+        logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count-success}')
+    else:
+        logger.info(f'COUNT: {count}')
