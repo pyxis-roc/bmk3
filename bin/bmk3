@@ -7,12 +7,11 @@ import os
 import sys
 import bmk3.cmdscript as cmdscript
 import logging
-import datetime
-import time
 import glob
 import fnmatch
 import re
 import textwrap
+import bmk3.rulerunners as rulerunners
 
 def find_bmk3():
     paths = ['.']
@@ -121,40 +120,10 @@ if __name__ == "__main__":
         raise
         sys.exit(1)
 
-    count = 0
-    success = 0
-
-    for c in cmdscripts:
-        logger.info(f"**** {c.name} from {c.cwd}")
-
-        logger.info(textwrap.indent("\n" + str(c.script), '    '))
-        count += 1
-        fail = False
-        if not args.dryrun:
-            logger.info(f'Running {c.name} at {datetime.datetime.now()}')
-            start = time.perf_counter()
-            if not c.run():
-                logger.error(f'Running {c.name} FAILED')
-                if not args.quiet:
-                    logger.info(c.result.output)
-                    logger.info(c.result.errors)
-                fail = True
-            else:
-                logger.info(f'Running {c.name} SUCCEEDED')
-                if not args.quiet:
-                    logger.info(c.result.output)
-                    logger.info(c.result.errors)
-                success += 1
-
-            end = time.perf_counter()
-            logger.info(f'{c.name} finished at {datetime.datetime.now()}')
-            logger.info(f'{c.name} took {end - start} s')
-
-        if args.keep != 'always':
-            if args.keep == 'never' or not (fail and args.keep == 'fail'):
-                c.cleanup()
-
+    rr = rulerunners.SerialRunner()
+    count, success = rr.run_all(cmdscripts, dry_run = args.dryrun, keep_temps = args.keep, quiet = args.quiet)
     if not args.dryrun:
-        logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count-success}')
+        logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
     else:
         logger.info(f'COUNT: {count}')
+
