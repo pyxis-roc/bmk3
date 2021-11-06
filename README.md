@@ -27,13 +27,26 @@ bmk3
 
 to see all the possible commands and rules.
 
-Then run,
+### Running rules
+
+To run rules, specify the rule name:
 
 ```
-bmk3 rule1*
+bmk3 rule1
 ```
 
-This will execute all rules whose names start with `rule1`.
+This will execute all rules whose names start with `rule1`. Rule names
+are suffixed with contents of variables.
+
+**Glob-style patterns**: `bmk3` also supports the use of glob-style patterns to match rule
+names.
+
+```
+bmk3 -g '*some*'
+```
+
+will match all rules containing `some`.  Note the use of quotes to
+shield the pattern from the shell.
 
 
 ## The `bmk3.yaml` File

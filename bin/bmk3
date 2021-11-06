@@ -34,18 +34,30 @@ def rule_globs_to_re(r):
     xp = [fnmatch.translate(rr) for rr in r]
     return re.compile("|".join([x for x in xp]))
 
+def make_prefix_globs(r):
+    # note that rules must be python identifiers, but suffixing with
+    # variable contents can change this. So there is no way to detect
+    # reliably that a rule prefix supplied on the command line
+    # contains no globs. To prevent accidental globbing beyond prefix
+    # expansion, we escape all glob characters.
+
+    pg = [glob.escape(x) + "*" for x in r]
+
+    return pg
+
 logger = logging.getLogger('bmk3')
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
-    #p.add_argument("-f", dest="bmk3file", help="bmk3 script file", default="bmk3.yaml")
+    p.add_argument("-g", dest="globrules", help="Treat rule prefixes as glob patterns",
+                   action="store_true")
     p.add_argument("-v", dest="variables", help="Add variable", default=[], action="append")
     p.add_argument("-n", dest="dryrun", help="Dry run", action="store_true")
     p.add_argument("-q", dest="quiet", help="Quiet", action="store_true")
     p.add_argument("-k", dest="keep", choices=['always', 'fail', 'never'],
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
-    p.add_argument("rules", nargs="*", help="Rule globs to run", default=[])
+    p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     logging.basicConfig(level=logging.INFO)
 
@@ -73,7 +85,10 @@ if __name__ == "__main__":
     b.expand_templates()
 
     if args.rules:
-        rule_re = rule_globs_to_re(args.rules)
+        if args.globrules:
+            rule_re = rule_globs_to_re(args.rules)
+        else:
+            rule_re = rule_globs_to_re(make_prefix_globs(args.rules))
     else:
         rule_re = None
 
