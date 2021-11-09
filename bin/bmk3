@@ -65,6 +65,8 @@ if __name__ == "__main__":
         os.chdir(args.workdir)
 
     bmk3files = list(find_bmk3())
+    cp = os.path.commonprefix(bmk3files)
+
     logger.info(f'Loaded {len(bmk3files)} files')
     logger.debug(f'Found {bmk3files}')
 
@@ -79,7 +81,7 @@ if __name__ == "__main__":
             cmdline_variables[vn] = vv
 
     b = bmk3.BMK3()
-    b.load_scripts(bmk3files)
+    b.load_scripts(bmk3files, strip_prefix = cp)
     b.update_variables(cmdline_variables)
     b.expand_templates()
 
@@ -104,6 +106,9 @@ if __name__ == "__main__":
             if 'input' in a: k.append(str(a['input']['name']))
 
             name = ':'.join(k)
+
+            if s.ns:
+                name = f"{name}[{s.ns}]"
 
             if rule_re:
                 if rule_re.match(name):

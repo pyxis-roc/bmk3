@@ -168,8 +168,9 @@ class ScriptTemplate:
     __repr__ = __str__
 
 class Script:
-    def __init__(self, script):
+    def __init__(self, script, ns = ''):
         self.script = script
+        self.ns = ns
         self.cwd = os.path.dirname(os.path.realpath(script))
         self._system, self._variables, self._templates, r = self._loader(self.script)
         self.filters = r.get('filters', {})
@@ -237,10 +238,11 @@ class BMK3:
     def __init__(self):
         pass
 
-    def load_scripts(self, scriptfiles):
+    def load_scripts(self, scriptfiles, strip_prefix = ''):
         out = []
         for f in scriptfiles:
-            s = Script(f)
+            ns = os.path.dirname(f)[len(strip_prefix):]
+            s = Script(f, ns)
             out.append(s)
 
         self.scripts = out
