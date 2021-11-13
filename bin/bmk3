@@ -14,6 +14,7 @@ import textwrap
 import bmk3.rulerunners as rulerunners
 from bmk3 import logutils
 import datetime
+import json
 
 logger = logging.getLogger('bmk3')
 
@@ -71,6 +72,14 @@ def dump_outliers(cmdscripts, count, success):
         if crit(cs):
             logger.info(f"{cs.name} {msg}.")
 
+def dump_run_stats(cmdscripts, outfile):
+    out = {}
+    for cs in cmdscripts:
+        out[cs.name] = cs.get_stats()
+
+    with open(outfile, "w") as f:
+        json.dump(out, fp=f, indent=2)
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
     p.add_argument("-g", dest="globrules", help="Treat rule prefixes as glob patterns",
@@ -82,6 +91,7 @@ if __name__ == "__main__":
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
     p.add_argument("-l", dest="logfile", metavar="FILE", help="Log to file")
+    p.add_argument("--js", dest="jsonstats", metavar="FILE", help="Store run statistics in JSON file")
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     args = p.parse_args()
@@ -165,6 +175,10 @@ if __name__ == "__main__":
 
             if count != success:
                 dump_outliers(cmdscripts, count, success)
+
+                if args.jsonstats:
+                    logger.info(f"Writing run stats to {args.jsonstats}")
+                    dump_run_stats(cmdscripts, args.jsonstats)
         else:
             logger.info(f'COUNT: {count}')
     else:
@@ -174,3 +188,4 @@ if __name__ == "__main__":
 
     logger.info(f"End at {end_time.astimezone().isoformat()} ({end_time.isoformat()})")
     logger.info(f"Total time {end_time - start_time}")
+

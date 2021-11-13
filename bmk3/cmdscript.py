@@ -13,6 +13,18 @@ class CmdScript:
         self.script = script
         self.varvals = varvals
         self.cwd = cwd
+        self.timing = None # this is set by a runner: to have better logging?
+
+    def get_stats(self):
+        out = []
+
+        for r, t in zip([self.result], [self.timing]): # in prep for multiple runs
+            out.append({'success': r.success,
+                        'start': t.start,
+                        'end': t.end,
+                        'total': t.total})
+
+        return out
 
     def run(self):
         h, f = tempfile.mkstemp(suffix='.sh')
