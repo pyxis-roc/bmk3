@@ -12,6 +12,9 @@ import fnmatch
 import re
 import textwrap
 import bmk3.rulerunners as rulerunners
+from bmk3 import logutils
+
+logger = logging.getLogger('bmk3')
 
 def find_bmk3():
     paths = ['.']
@@ -23,7 +26,7 @@ def find_bmk3():
                     if f.is_dir():
                         paths.append(f)
                     elif f.is_file() and f.name == 'bmk3.yaml':
-                        yield f.path
+                        yield f.path[2:] # drop ./ at front
         except PermissionError as e:
             logger.error(str(e))
 
@@ -44,8 +47,6 @@ def make_prefix_globs(r):
 
     return pg
 
-logger = logging.getLogger('bmk3')
-
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
     p.add_argument("-g", dest="globrules", help="Treat rule prefixes as glob patterns",
@@ -56,16 +57,19 @@ if __name__ == "__main__":
     p.add_argument("-k", dest="keep", choices=['always', 'fail', 'never'],
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
+    p.add_argument("-l", dest="logfile", metavar="FILE", help="Log to file")
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
-    logging.basicConfig(level=logging.INFO)
-
     args = p.parse_args()
+
+    logutils.setup_logging(args.logfile, filemode='a')
+
     if args.workdir:
+        log.debug(f"Changing to {args.workdir}")
         os.chdir(args.workdir)
 
     bmk3files = list(find_bmk3())
-    cp = os.path.commonprefix(bmk3files)
+    cp = os.path.commonpath(bmk3files)
 
     logger.info(f'Loaded {len(bmk3files)} files')
     logger.debug(f'Found {bmk3files}')

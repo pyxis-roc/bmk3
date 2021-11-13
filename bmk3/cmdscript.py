@@ -30,7 +30,7 @@ class CmdScript:
         if 'TempFile' in self.varvals:
             for k, v in self.varvals['TempFile'].items():
                 if os.path.exists(v):
-                    logger.info(f'Deleting temporary file {v}')
+                    logger.debug(f'Deleting temporary file {v}')
                     os.unlink(v)
 
     def __str__(self):
