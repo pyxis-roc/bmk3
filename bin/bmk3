@@ -100,6 +100,7 @@ if __name__ == "__main__":
     # expand template definitions and build command scripts
 
     cmdscripts = []
+    rulecount = 0
 
     try:
         for s, t, g in b.generate():
@@ -124,15 +125,23 @@ if __name__ == "__main__":
                 if not args.quiet:
                     print(textwrap.indent(str(x), '   '))
                 x.cleanup()
+                rulecount += 1
     except KeyError as err:
         logger.error(f"While expanding template, {str(err)}")
         raise
         sys.exit(1)
 
-    rr = rulerunners.SerialRunner()
-    count, success = rr.run_all(cmdscripts, dry_run = args.dryrun, keep_temps = args.keep, quiet = args.quiet)
-    if not args.dryrun:
-        logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
-    else:
-        logger.info(f'COUNT: {count}')
+    if rule_re:
+        rr = rulerunners.SerialRunner()
+        count, success = rr.run_all(cmdscripts, dry_run = args.dryrun, keep_temps = args.keep, quiet = args.quiet)
+        if not args.dryrun:
+            logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
 
+            if count != success:
+                for cs in cmdscripts:
+                    if not cs.result.success:
+                        logger.info(f"{cs.name} failed.")
+        else:
+            logger.info(f'COUNT: {count}')
+    else:
+        logger.info(f'COUNT: {rulecount}')
