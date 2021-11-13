@@ -13,6 +13,7 @@ import re
 import textwrap
 import bmk3.rulerunners as rulerunners
 from bmk3 import logutils
+import datetime
 
 logger = logging.getLogger('bmk3')
 
@@ -91,6 +92,8 @@ if __name__ == "__main__":
         log.debug(f"Changing to {args.workdir}")
         os.chdir(args.workdir)
 
+    start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+    logger.info(f"Start at {start_time.astimezone().isoformat()} ({start_time.isoformat()})")
     bmk3files = list(find_bmk3())
     cp = os.path.commonpath(bmk3files)
 
@@ -166,3 +169,8 @@ if __name__ == "__main__":
             logger.info(f'COUNT: {count}')
     else:
         logger.info(f'COUNT: {rulecount}')
+
+    end_time = datetime.datetime.now(tz=datetime.timezone.utc)
+
+    logger.info(f"End at {end_time.astimezone().isoformat()} ({end_time.isoformat()})")
+    logger.info(f"Total time {end_time - start_time}")
