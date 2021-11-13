@@ -47,6 +47,29 @@ def make_prefix_globs(r):
 
     return pg
 
+def dump_outliers(cmdscripts, count, success):
+    # if all runs were successful or failed, don't print this list
+    if success == 0:
+        logger.info(f"All rules failed.")
+        return
+
+    if success == count:
+        logger.info(f"All rules succeeded.")
+        return
+
+    if success > count - success:
+        # if most benchmarks succeeded
+        crit = lambda x: not x.result.success # select failures
+        msg = "failed"
+    else:
+        # if most benchmarks failed
+        crit = lambda x: x.result.success # select successes
+        msg = "succeeded"
+
+    for cs in cmdscripts:
+        if crit(cs):
+            logger.info(f"{cs.name} {msg}.")
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Run a bmk3 script")
     p.add_argument("-g", dest="globrules", help="Treat rule prefixes as glob patterns",
@@ -138,9 +161,7 @@ if __name__ == "__main__":
             logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
 
             if count != success:
-                for cs in cmdscripts:
-                    if not cs.result.success:
-                        logger.info(f"{cs.name} failed.")
+                dump_outliers(cmdscripts, count, success)
         else:
             logger.info(f'COUNT: {count}')
     else:
