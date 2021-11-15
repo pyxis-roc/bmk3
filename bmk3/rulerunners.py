@@ -58,3 +58,15 @@ class SerialRunner:
         else:
             return count, None
 
+class ParallelRunner:
+    def __init__(self, nprocs=0):
+        self.nprocs = nprocs
+
+    def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
+        assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
+
+        count = 0
+        success = 0
+
+        for c in cmdscripts:
+            logger.info(f"**** {c.name} from {c.cwd}")
