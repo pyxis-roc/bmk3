@@ -151,12 +151,17 @@ if __name__ == "__main__":
             if s.ns:
                 name = f"{name}[{s.ns}]"
 
+            if '_serial' in a and a['_serial']:
+                sem = a['_semaphores']
+            else:
+                sem = None
+
             if rule_re:
                 if rule_re.match(name):
                     x = cmdscript.CmdScript(name, c, a, cwd = s.cwd)
                     cmdscripts.append(x)
             else:
-                print(f"*** {name}")
+                print(f"*** {name} serial={a['_serial']} sem={sem}")
                 x = cmdscript.CmdScript(name, c, a)
                 if not args.quiet:
                     print(textwrap.indent(str(x), '   '))

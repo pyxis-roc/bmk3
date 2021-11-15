@@ -41,7 +41,22 @@ class ScriptTemplate:
         self.fragment = template.get('fragment', False)
         assert 'cmds' in template, f'{name} missing "cmds"'
         self.template = template['cmds'].strip()
+
+        self.serial = template.get('serial', False)
+        self._ss = None
+        self.inherited_semaphores = {}
         self.parse()
+
+    def set_script(self, script):
+        self.script = script
+
+    @property
+    def serial_semaphore(self):
+        if self._ss is None:
+            assert self.script is not None, f"set_script necessary before obtaining semaphore"
+            self._ss = Sem(f'{self.script.ns}:{self.name}:serial', 1)
+
+        return self._ss
 
     def parse(self):
         f = Formatter()
@@ -94,6 +109,12 @@ class ScriptTemplate:
                             out.append((x[0], None, '', None))
 
                         out.extend(templates[tmpl].parsed)
+                        self.serial = self.serial or templates[tmpl].serial
+
+                        if templates[tmpl].serial:
+                            self.inherited_semaphores[templates[tmpl].serial_semaphore.name] = templates[tmpl].serial_semaphore
+
+                        self.inherited_semaphores.update(templates[tmpl].inherited_semaphores)
                     else:
                         out.append(x)
                 else:
@@ -127,6 +148,16 @@ class ScriptTemplate:
         if len(not_provided):
             raise KeyError(f"Variables {not_provided} not specified for rule {self.name}")
 
+
+        semdict = {}
+        semdict['_serial'] = self.serial
+        if self.serial:
+            semdict['_semaphores'] = [self.serial_semaphore]
+        else:
+            semdict['_semaphores'] = []
+
+        semdict['_semaphores'].extend(self.inherited_semaphores.values())
+
         varorder = []
         varcontents = []
         for v in self.variables:
@@ -152,6 +183,7 @@ class ScriptTemplate:
                 assign['TempFile'] = tmpfileobj.tmpfiles
                 tmpfileobj.reset()
 
+            assign.update(semdict)
             yield assign, s
 
     def check_assignment(self, assign, filters):
@@ -173,6 +205,10 @@ class Script:
         self.ns = ns
         self.cwd = os.path.dirname(os.path.realpath(script))
         self._system, self._variables, self._templates, r = self._loader(self.script)
+
+        for t in self._templates:
+            self._templates[t].set_script(self)
+
         self.filters = r.get('filters', {})
 
     def _loader(self, script):
@@ -240,8 +276,12 @@ class BMK3:
 
     def load_scripts(self, scriptfiles, strip_prefix = ''):
         out = []
+        nss = set()
         for f in scriptfiles:
             ns = os.path.dirname(f)[len(strip_prefix):]
+            assert ns not in nss, f"Internal error: Duplicate namespace {ns}"
+            nss.add(ns)
+
             s = Script(f, ns)
             out.append(s)
 
@@ -264,3 +304,16 @@ class BMK3:
             for t, g in s.generate(s.variables, template_filter):
                 yield s, t, g
 
+class Sem:
+    """A semaphore specification"""
+    def __init__(self, name, count):
+        self.name = name
+        self.count = count
+
+    def __eq__(self, other):
+        return isinstance(other, Sem) and other.name == self.name and other.count == self.count
+
+    def __str__(self):
+        return f"Semaphore(name={self.name}, count={self.count})"
+
+    __repr__ = __str__
