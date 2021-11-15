@@ -7,6 +7,7 @@ import textwrap
 from collections import namedtuple
 import random
 import itertools
+import multiprocessing
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,10 @@ TimeRecord = namedtuple('TimeRecord', 'start end total')
 
 def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
     fail = False
+
+    logger.info(f"**** {c.name} from {c.cwd}")
+
+    logger.info(textwrap.indent("\n" + str(c.script), '    '))
 
     if not dry_run:
         logger.info(f'Running {c.name} at {datetime.datetime.now()}')
@@ -53,10 +58,6 @@ class SerialRunner:
         success = 0
 
         for c in cmdscripts:
-            logger.info(f"**** {c.name} from {c.cwd}")
-
-            logger.info(textwrap.indent("\n" + str(c.script), '    '))
-
             count += 1
             if _run_one(c, dry_run, keep_temps, quiet) and not dry_run:
                 success += 1
@@ -66,9 +67,14 @@ class SerialRunner:
         else:
             return count, None
 
+def _run_queue(cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
+    sr = SerialRunner()
+    return sr.run_all(cmdscripts, dry_run, keep_temps, quiet)
+
 class ParallelRunner:
-    def __init__(self, nprocs=0):
+    def __init__(self, nprocs=None):
         self.nprocs = nprocs
+        self.pool = multiprocessing.Pool(self.nprocs)
 
     def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
         assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
@@ -96,8 +102,6 @@ class ParallelRunner:
             for x in dag:
                 if x == st: continue
 
-                print(x, st, set(x).intersection(sts))
-
                 if set(x).intersection(sts):
                     dag[st] = max(dag[st], dag[x] + 1)
 
@@ -116,6 +120,7 @@ class ParallelRunner:
 
         for r in sorted(rounds.keys()):
             if r == -1:
+                logger.debug(f"Launching all parallel")
                 c, s = self._run_parallel(rounds[r], dry_run, keep_temps, quiet)
                 count += c
                 if not dry_run:
@@ -125,10 +130,14 @@ class ParallelRunner:
                 for x in rounds[r]:
                     queues[x._queue].append(x)
 
-                for q in queues:
-                    c, s = self._run_queue(queues[q], dry_run, keep_temps, quiet)
+                logger.debug(f"Launching queues on round {r}")
+
+                csl = self.pool.starmap(_run_queue,
+                                        [(queues[q], dry_run, keep_temps, quiet) for q in queues])
+
+                for c, s in csl:
                     count += c
-                    if not dry_run:
+                    if s is not None:
                         success += s
 
                 # wait for round to finish
@@ -139,18 +148,13 @@ class ParallelRunner:
             return count, success
 
     def _run_parallel(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
-        res = []
-        for c in cmdscripts:
-            res.append(_run_one(c, dry_run, keep_temps, quiet))
+        res = self.pool.starmap(_run_one, [(c, dry_run, keep_temps, quiet) for c in cmdscripts])
 
-        count = len(cmdscripts)
+        count = len(res)
         if not dry_run:
-            success = len(filter(res, lambda x: x))
+            success = len(list(filter(lambda x: x, res)))
         else:
             success = None
 
         return count, success
 
-    def _run_queue(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
-        sr = SerialRunner()
-        return sr.run_all(cmdscripts, dry_run, keep_temps, quiet)
