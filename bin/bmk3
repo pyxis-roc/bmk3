@@ -100,7 +100,7 @@ if __name__ == "__main__":
     logutils.setup_logging(args.logfile, filemode='a', multiprocessing = args.parallel is not None)
 
     if args.workdir:
-        log.debug(f"Changing to {args.workdir}")
+        logger.debug(f"Changing to {args.workdir}")
         os.chdir(args.workdir)
 
     start_time = datetime.datetime.now(tz=datetime.timezone.utc)
