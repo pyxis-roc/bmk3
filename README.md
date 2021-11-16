@@ -53,7 +53,7 @@ shield the pattern from the shell.
 You can run the rules in parallel using the `-j` option to `bmk3`.
 
 ```
-bmk3 -j rule1
+bmk3 rule1 -j
 ```
 
 Run all instances of `rule1` in parallel using all processors
