@@ -92,7 +92,7 @@ if __name__ == "__main__":
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
     p.add_argument("-l", dest="logfile", metavar="FILE", help="Log to file")
     p.add_argument("--js", dest="jsonstats", metavar="FILE", help="Store run statistics in JSON file")
-    p.add_argument("-j", dest="parallel", metavar="PROCS", help="Run PROCS in parallel, 0 for number of cores", type=int)
+    p.add_argument("-j", dest="parallel", nargs="?", const=0, metavar="PROCS", help="Run PROCS in parallel, 0 for number of cores", type=int)
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
 
     args = p.parse_args()
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     if rule_re:
 
         if args.parallel is not None:
-            logger.info(f'Using parallel execution mode with nprocs={args.parallel}')
+            logger.info(f'Using parallel execution mode with nprocs={args.parallel if args.parallel != 0 else os.cpu_count()}')
             rr = rulerunners.ParallelRunner(args.parallel if args.parallel != 0 else None)
         else:
             rr = rulerunners.SerialRunner()
@@ -192,12 +192,12 @@ if __name__ == "__main__":
 
             logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
 
-            if True or (count != success):
+            if (count != success):
                 dump_outliers(results, count, success)
 
-                if args.jsonstats:
-                    logger.info(f"Writing run stats to {args.jsonstats}")
-                    dump_run_stats(results, args.jsonstats)
+            if args.jsonstats:
+                logger.info(f"Writing run stats to {args.jsonstats}")
+                dump_run_stats(results, args.jsonstats)
         else:
             logger.info(f'COUNT: {count}')
     else:
