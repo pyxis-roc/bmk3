@@ -199,6 +199,7 @@ if __name__ == "__main__":
                 logger.info(f"Writing run stats to {args.jsonstats}")
                 dump_run_stats(results, args.jsonstats)
         else:
+            count = len(cmdscripts)
             logger.info(f'COUNT: {count}')
     else:
         logger.info(f'COUNT: {rulecount}')
