@@ -54,12 +54,12 @@ def run(cmd, *args, **kwargs):
 
         if 'stdout' not in kwargs:
             hout, outfile = tempfile.mkstemp()
-            logger.info(f'Logging output to {outfile}')
+            logger.info(f'Logging output to {outfile} for {command}')
             kwargs['stdout'] = hout
 
         if 'stderr' not in kwargs:
             herr, errfile = tempfile.mkstemp()
-            logger.info(f'Logging errors to {errfile}')
+            logger.info(f'Logging errors to {errfile} for {command}')
             kwargs['stderr'] = herr
 
         if 'cwd' in kwargs:

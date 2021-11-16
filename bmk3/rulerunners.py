@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 TimeRecord = namedtuple('TimeRecord', 'start end total')
 
+PREFIX_OUTPUT = True
+
 def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
     fail = False
     logger.info(f"**** {c.name} from {c.cwd}")
@@ -25,16 +27,24 @@ def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
         if not c.run():
             logger.error(f'Running {c.name} FAILED')
             if not quiet:
-                logger.info(c.result.output)
-                logger.info(c.result.errors)
+                if PREFIX_OUTPUT:
+                    logger.info(textwrap.indent(c.result.output, f"{c.name}:> "))
+                    logger.info(textwrap.indent(c.result.errors, f"{c.name}:> "))
+                else:
+                    logger.info(c.result.output)
+                    logger.info(c.result.errors)
 
             fail = True
 
         else:
             logger.info(f'Running {c.name} SUCCEEDED')
             if not quiet:
-                logger.info(c.result.output)
-                logger.info(c.result.errors)
+                if PREFIX_OUTPUT:
+                    logger.info(textwrap.indent(c.result.output, f"{c.name}:> "))
+                    logger.info(textwrap.indent(c.result.errors, f"{c.name}:> "))
+                else:
+                    logger.info(c.result.output)
+                    logger.info(c.result.errors)
 
         end = time.perf_counter()
         logger.info(f'{c.name} finished at {datetime.datetime.now()}')
