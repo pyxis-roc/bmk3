@@ -69,7 +69,6 @@ def _run_queue(cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
 class ParallelRunner:
     def __init__(self, nprocs=None):
         self.nprocs = nprocs
-        self.pool = multiprocessing.Pool(self.nprocs)
 
     def parallelize(self, cmdscripts):
         sems = set()
@@ -114,13 +113,15 @@ class ParallelRunner:
     def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
         assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
 
+        pool = multiprocessing.Pool(self.nprocs)
+
         rounds = self.parallelize(cmdscripts)
 
         out = []
         for r in sorted(rounds.keys()):
             if r == -1:
                 logger.debug(f"Launching all parallel")
-                out.extend(self._run_parallel(rounds[r], dry_run, keep_temps, quiet))
+                out.extend(self._run_parallel(pool, rounds[r], dry_run, keep_temps, quiet))
             else:
                 queues = dict([(x._queue, []) for x in rounds[r]])
                 for x in rounds[r]:
@@ -128,19 +129,17 @@ class ParallelRunner:
 
                 logger.debug(f"Launching queues on round {r}")
 
-                qres = self.pool.starmap(_run_queue,
-                                        [(queues[q], dry_run, keep_temps, quiet) for q in queues])
+                qres = pool.starmap(_run_queue,
+                                    [(queues[q], dry_run, keep_temps, quiet) for q in queues])
 
                 # wait for round to finish
 
                 for qr in qres:
                     out.extend(qr)
 
-        for r in out:
-            print(r.result)
         return out
 
-    def _run_parallel(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
-        res = self.pool.starmap(_run_one, [(c, dry_run, keep_temps, quiet) for c in cmdscripts])
+    def _run_parallel(self, pool, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
+        res = pool.starmap(_run_one, [(c, dry_run, keep_temps, quiet) for c in cmdscripts])
         return res
 
