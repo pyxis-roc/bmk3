@@ -17,7 +17,7 @@ import os
 MAX_OUTPUT = 0
 logger = logging.getLogger(__name__)
 
-RunResult = namedtuple('RUN_RESULT', 'success returncode output errors exception processobj outfile errfile')
+RunResult = namedtuple('RunResult', 'success returncode output errors exception processobj outfile errfile')
 
 def shorten(output, max_len = MAX_OUTPUT):
     if max_len == 0:

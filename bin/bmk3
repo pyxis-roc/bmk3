@@ -181,16 +181,23 @@ if __name__ == "__main__":
         else:
             rr = rulerunners.SerialRunner()
 
-        count, success = rr.run_all(cmdscripts, dry_run = args.dryrun, keep_temps = args.keep, quiet = args.quiet)
+        # TODO: in serial mode, results contains the same objects as
+        # cmdscripts in parallel runs, result objects are different
+        # than cmdscripts
+
+        results = rr.run_all(cmdscripts, dry_run = args.dryrun, keep_temps = args.keep, quiet = args.quiet)
         if not args.dryrun:
+            count = len(results)
+            success = len(list(filter(lambda x: x.result.success, results)))
+
             logger.info(f'COUNT: {count}, SUCCESS: {success}, FAILED: {count - success}')
 
-            if count != success:
-                dump_outliers(cmdscripts, count, success)
+            if True or (count != success):
+                dump_outliers(results, count, success)
 
                 if args.jsonstats:
                     logger.info(f"Writing run stats to {args.jsonstats}")
-                    dump_run_stats(cmdscripts, args.jsonstats)
+                    dump_run_stats(results, args.jsonstats)
         else:
             logger.info(f'COUNT: {count}')
     else:

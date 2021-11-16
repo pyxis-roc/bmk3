@@ -15,7 +15,6 @@ TimeRecord = namedtuple('TimeRecord', 'start end total')
 
 def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
     fail = False
-
     logger.info(f"**** {c.name} from {c.cwd}")
 
     logger.info(textwrap.indent("\n" + str(c.script), '    '))
@@ -30,6 +29,7 @@ def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
                 logger.info(c.result.errors)
 
             fail = True
+
         else:
             logger.info(f'Running {c.name} SUCCEEDED')
             if not quiet:
@@ -48,37 +48,30 @@ def _run_one(c, dry_run = False, keep_temps = 'fail', quiet = False):
         if keep_temps == 'never' or (keep_temps == 'fail' and not fail):
             c.cleanup()
 
-    return not fail
+    return c
 
 class SerialRunner:
     def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
         assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
 
-        count = 0
-        success = 0
-
+        out = []
         for c in cmdscripts:
-            count += 1
-            if _run_one(c, dry_run, keep_temps, quiet) and not dry_run:
-                success += 1
+            cr = _run_one(c, dry_run, keep_temps, quiet)
+            out.append(cr)
 
-        if not dry_run:
-            return count, success
-        else:
-            return count, None
+        return out
 
 def _run_queue(cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
     sr = SerialRunner()
-    return sr.run_all(cmdscripts, dry_run, keep_temps, quiet)
+    results = sr.run_all(cmdscripts, dry_run, keep_temps, quiet)
+    return results
 
 class ParallelRunner:
     def __init__(self, nprocs=None):
         self.nprocs = nprocs
         self.pool = multiprocessing.Pool(self.nprocs)
 
-    def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
-        assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
-
+    def parallelize(self, cmdscripts):
         sems = set()
 
         for c in cmdscripts:
@@ -116,15 +109,18 @@ class ParallelRunner:
 
             rounds[v].append(c)
 
-        count, success = 0, 0
+        return rounds
 
+    def run_all(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
+        assert keep_temps in ('fail', 'never', 'always'), f"Incorrect value for keep_temps: {keep_temps}, must be one of fail, never or always"
+
+        rounds = self.parallelize(cmdscripts)
+
+        out = []
         for r in sorted(rounds.keys()):
             if r == -1:
                 logger.debug(f"Launching all parallel")
-                c, s = self._run_parallel(rounds[r], dry_run, keep_temps, quiet)
-                count += c
-                if not dry_run:
-                    success += s
+                out.extend(self._run_parallel(rounds[r], dry_run, keep_temps, quiet))
             else:
                 queues = dict([(x._queue, []) for x in rounds[r]])
                 for x in rounds[r]:
@@ -132,29 +128,19 @@ class ParallelRunner:
 
                 logger.debug(f"Launching queues on round {r}")
 
-                csl = self.pool.starmap(_run_queue,
+                qres = self.pool.starmap(_run_queue,
                                         [(queues[q], dry_run, keep_temps, quiet) for q in queues])
-
-                for c, s in csl:
-                    count += c
-                    if s is not None:
-                        success += s
 
                 # wait for round to finish
 
-        if dry_run:
-            return count, None
-        else:
-            return count, success
+                for qr in qres:
+                    out.extend(qr)
+
+        for r in out:
+            print(r.result)
+        return out
 
     def _run_parallel(self, cmdscripts, dry_run = False, keep_temps = 'fail', quiet = False):
         res = self.pool.starmap(_run_one, [(c, dry_run, keep_temps, quiet) for c in cmdscripts])
-
-        count = len(res)
-        if not dry_run:
-            success = len(list(filter(lambda x: x, res)))
-        else:
-            success = None
-
-        return count, success
+        return res
 
