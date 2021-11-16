@@ -47,6 +47,7 @@ following properties are recognized:
   - `fragment`: A boolean value which if true will prevent this rule
       from being expanded.
   - `cmds`: A Python `format`-style string that will be expanded.
+  - `serial`: If `true`, no instance of this rule or rules that inherit this rule will execute in parallel.
 
 ### Special variables in templates
 

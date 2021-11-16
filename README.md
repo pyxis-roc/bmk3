@@ -27,7 +27,7 @@ bmk3
 
 to see all the possible commands and rules.
 
-### Running rules
+### Running Rules
 
 To run rules, specify the rule name:
 
@@ -47,6 +47,26 @@ bmk3 -g '*some*'
 
 will match all rules containing `some`.  Note the use of quotes to
 shield the pattern from the shell.
+
+### Parallel Execution of Rules
+
+You can run the rules in parallel using the `-j` option to `bmk3`.
+
+```
+bmk3 -j rule1
+```
+
+Run all instances of `rule1` in parallel using all processors
+available on the system.
+
+The `-j` option takes a number that limits the number of processors
+used. For example:
+
+```
+bmk3 -j2 rule1
+```
+
+will use only 2 processors.
 
 
 ## The `bmk3.yaml` File
