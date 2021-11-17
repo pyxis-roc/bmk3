@@ -38,14 +38,14 @@ def rule_globs_to_re(r):
     xp = [fnmatch.translate(rr) for rr in r]
     return re.compile("|".join([x for x in xp]))
 
-def make_prefix_globs(r):
+def make_prefix_globs(r, no_prefix = False):
     # note that rules must be python identifiers, but suffixing with
     # variable contents can change this. So there is no way to detect
     # reliably that a rule prefix supplied on the command line
     # contains no globs. To prevent accidental globbing beyond prefix
     # expansion, we escape all glob characters.
 
-    pg = [glob.escape(x) + "*" for x in r]
+    pg = [glob.escape(x) + ("" if no_prefix else "*")  for x in r]
 
     return pg
 
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                    help="Keep temporary files", default='fail')
     p.add_argument("-C", dest="workdir", metavar="DIR", help="Change to DIR")
     p.add_argument("-l", dest="logfile", metavar="FILE", help="Log to file")
+    p.add_argument("--np", dest="no_prefix", action="store_true", help="Do not treat rules as prefixes")
     p.add_argument("--js", dest="jsonstats", metavar="FILE", help="Store run statistics in JSON file")
     p.add_argument("-j", dest="parallel", nargs="?", const=0, metavar="PROCS", help="Run PROCS in parallel, 0 for number of cores", type=int)
     p.add_argument("rules", nargs="*", help="Prefixes of rules to run", default=[])
@@ -130,7 +131,7 @@ if __name__ == "__main__":
         if args.globrules:
             rule_re = rule_globs_to_re(args.rules)
         else:
-            rule_re = rule_globs_to_re(make_prefix_globs(args.rules))
+            rule_re = rule_globs_to_re(make_prefix_globs(args.rules, no_prefix=args.no_prefix))
     else:
         rule_re = None
 
