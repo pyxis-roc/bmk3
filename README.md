@@ -139,3 +139,11 @@ INFO:bmk3:COUNT: 2, SUCCESS: 1, FAILED: 1
 Note the success of `true` and the failure of `false`.
 
 See the [`bmk3.yaml` reference](bmk3yaml-ref.md) for syntax details.
+
+# LICENSE
+
+SPDX-FileCopyrightText: 2021 University of Rochester
+
+SPDX-License-Identifier: MIT
+
+
